@@ -1,6 +1,6 @@
 # Predicting Athletic Performance using Machine Learning in R
 
-This project aims to predict the categorical variable *performance_category* (athletic performance level) using several predictor variables and well-known machine learning methods.  With a synthetic dataset consisting of 15,000 chinese students, we divided the data into a training, validation and test subset. Thereafter, four types of model was compared: 
+This project aims to predict the categorical variable *performance_category* (athletic performance level) using several predictor variables and well-known machine learning methods.  With a synthetic dataset consisting of 15,000 chinese students, the data was divided into a training, validation and test subset. Thereafter, four types of model was compared: 
 
 1) Multinomial Lasso Regression,
 2) Multinomial Elastic Net Regression,
