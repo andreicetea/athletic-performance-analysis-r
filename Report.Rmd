@@ -1,0 +1,1435 @@
+---
+title: "Elevers idrottsprestationer och påverkande faktorer"
+author:
+- André Lindblad
+- Benjamin Muwanika Kaskende
+date: "2026-10-24"
+output:
+  pdf_document:
+    fig_caption: true
+    number_sections: true
+    latex_engine: xelatex
+  html_document:
+    df_print: paged
+geometry: top=100pt,bottom=100pt,left=68pt,right=66pt
+subtitle: 732G57  |  Grupp 4
+header-includes:
+- \usepackage{float}
+- \usepackage{longtable}
+- \usepackage{caption}
+- \usepackage{fancyhdr}
+- \usepackage{titling}
+- \renewcommand{\headrulewidth}{0pt}
+- \renewcommand{\and}{\\}
+- \pretitle{\centering\vspace{0cm}{\large Labbrapport i statistik \par}\vspace{4cm}\Huge\textbf}
+- \posttitle{\vspace{1cm}\large\textbf{}\par}
+- \preauthor{\centering\vspace{4cm}\normalsize}
+- \postauthor{\par\vspace{4cm}}
+- \predate{\centering{\normalsize Avdelningen för Statistik och maskininlärning \\
+  Institutionen för datavetenskap \\ Linköpings universitet \par}}
+- \postdate{\par\vspace{2cm}}
+- \raggedbottom
+---
+
+\captionsetup[table]{name = Tabell}
+\setcounter{table}{0}
+\captionsetup[figure]{name = Diagram}
+\setcounter{figure}{0}
+
+\floatstyle{plaintop}
+\restylefloat{table}
+
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\pagestyle{fancy}
+
+\pagenumbering{gobble}
+
+\clearpage
+
+
+\setcounter{tocdepth}{3}
+\tableofcontents
+
+\clearpage
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+
+# Inledning
+
+I denna rapport så har vi arbetat med olika maskininlärningsmodeller tillämpat på en syntetisk datamängd från Kaggle. Vi har delat datan i en tränings-, validerings- och testmängd för modellanpassning, hyperparametersökning respektive modellutvärdering. Vi har även inkluderat den mest väsentliga delen av R-koden längre ner i rapporten, samt en reflekterande del kring AI användning i slutet.
+
+## Bakgrund
+
+Mycket forskning har gjorts gällande hur dessa variabler i vår dataset påverkar elevers prestation inom flera olika områden som akademisk prestation och sport prestation. En källa som är relativt liknande vårt dataset är artikeln som är gjord av Pan et al. (2022) som går igenom vilka faktorer som fyskisk aktivitet påverkar gällande kinesiska elever.
+
+I denna artikeln där de samlade 15 studier som genomförde en systematisk översikt av fysisk aktivitet bland kinesiska universitetsstudenter så fick de en resultat att kinesiska studenters främsta motivation att träna är att förbättra sin fysiska hälsa (Pan et al., 2022). De vanligaste aktiviteter var då löpning och promenader följt av bollspel. De tränade tre gånger i veckan och de flesta träningspassen genomfördes med måttlig intensitet och varade vanligtvist mellan 30 och 60 minuter.
+
+Det som påverkade universitetsstudenters fysiska aktivitet var tidsbrist till följd av akademisk belastning, begränsad tillgång till träningsanläggningar samt brist på professionell träningsvägledning.
+
+Denna studien ger en insikt om motivationen till deras fysiska aktivitet samt brister som uppkommer gällande mängden fysisk aktivitet som de kan göra, detta kan relatera sig med vårt dataset gällande prestations nivån för de kinesiska studenterna.
+
+Evaluating the efficiency of student sports training based on supervised learning av Kewei et al. (2022) testade en support vector machine-assisted sports training (SVMST) för att se om studenters effektivitet inom idrott ökade. De ville bygga en prototyp för idrottsträning som baseras på kriterier som matchdeltagande, traditionell matchstatistik, individuella kvalitetmått och motståndardata och deras framgång delades in i två nivåer: måttlig och hög. Resultatet visade att SVMST uppnår en hög studentprestation på 98.7%, en låg felkvot på 9.8%, en förbättrad utvärderingsgrad på 97.6%, ett träningsresultat på 95.6% och en effektivitetsgrad på 96.8%. Denna studie ger en insikt på hur övervakad maskininlärning kan användas för att undersöka idrottsprestationer, vilket är något viktigt till våran projekt.
+
+## Syfte
+
+Syftet med denna analys är att få praktisk övning med olika maskininlärningsmodeller givet en realistisk datamängd, och även att utvärdera och jämföra dessa modeller.
+
+## Problemformulering
+
+Frågeställningen som vi vill besvara är "vilka atletiska mått, hälsoindikatorer och demografiska faktorer är viktiga för att prediktera individers atletiska nivå?". Förutom att besvara frågeställningen vill vi också jämföra prediktionsförmåga mellan de olika modellerna.
+
+\clearpage
+
+# Data
+
+Datan består av totalt 15 000 observationer och 18 variabler. Vi utgår från att datan är syntetisk, då den saknar vetenskapliga referenser. Datamängden hittades här: <https://www.kaggle.com/datasets/colabsss/student-sports-performance-dataset>
+
+Vi har inte hittat någon annan som har gjort en analys för detta dataset, vilket inte är förvånande med tanke på att det är relativt nytt vid skrivningen av denna rapport (publicerades nära augusti 2026, exakt datum framgår inte).Nedan följer en komplett lista över variablerna:
+
+- **performance_category**, kategorisk responsvariabel med 5 nivåer: "Low", "Moderate", "High", "Very high" och "Excellent". Beskriver atletisk prestationsnivå för studenten.
+
+- **student_id** (kommer förstås inte vara med i modellering)
+
+- **sport_category**, antar värden "Athletics" (friidrott), "Football", "Basketball", "Volleyball", "Cricket", "Badminton", "Swimming" och "Tennis"
+
+- **excercise_frequency_per_week**, antal träningssessioner per vecka. Kan anta värden 0, 1, 2, 3 osv
+
+- **activity_intensity**, intensitetsnivå på fysiska aktiviteten mätt från en skala 1-10 (oklart om denna menar intensitet på sporten eller på en specifik given aktivitet)
+
+- **training_duration_min**, längden av en typisk träningssession mätt i minuter
+
+- **heart_rate_bpm**, studentens hjärtslag per minut
+
+- **endurance_min**, antal minuter som en student kan hålla på med en given uthållighetsaktivitet
+
+- **muscular_strength_kg**, uppmätt styrka mätt i kilogram
+
+- **flexibility_cm**, flexibilitet uppmätt från flexibilitetsbedömning mätt i centimeter
+
+- **jumping_ability_cm**
+
+- **sprint_speed_kmh**, maximal löpningshastighet mätt i kilometer per timme.
+
+- **running_time_sec**, tidtagning för studenten att slutföra ett springtest mätt i sekunder
+
+- **bmi**, kontinuerlig
+
+- **weight_kg**, kontinuerlig
+
+- **height_cm**, kontinuerlig
+
+- **gender**, antar värden "male" och "female"
+
+I tabell 1 så syns de första raderna i datan:
+
+```{r,echo=FALSE}
+data <- read.csv("C:/Users/Andre/Desktop/Maskin-Inlärning-Kurs/Projekt/student_sports_performance_Dataset.csv")
+
+library(knitr)
+kable(head(data[,1:7]), caption = "Första 5 dataraderna")
+kable(head(data[,8:13]))
+kable(head(data[,14:18]))
+```
+
+Detta dataset innehåller studenter från kina och täcker 8 stora idrotter: friidrott, basket, fotboll, simmning, badminton, cricket, volleyboll och tennis. Det syntetiska datasetet innehåller idrottsprestationsfaktorer som snabbhet, teknikstabilitet, rörelseeffektivitet, fysisk kapacitet, uthållighet, smidighet, träningsaktivitet och fysisk kondition vilket är menade att ge en heltäckande representation av de fysiska aktivitetsrelaterade egenskaper som kan tänkas vara kopplade till studenter idrottsprestationer.
+
+Publicenten av datasetet har inte själv angivit någon variabel som responsvariabel, men vi utgår från att **performance_level**/**prestationsnivå** är våran responsvariabel, med 5 ordinala nivåer: Låg, Medel, Hög, Mycket hög och Utmärkt. Dock så kan vi komma att behandla responsvariabeln som nominal när vi skapar modeller, för enkelhetens skull.
+
+Klassbalansen för responsvariabeln är helt jämn, där varje prestationsnivå innehåller exakt 3 000 observationer (20% per klass). Alltså är datamaterialet perfekt balanserat:
+
+```{r echo = FALSE}
+kable(prop.table(table(data$performance_category))*100, 
+      col.names = c("Prestationsnivå", "Procent %"), caption = "Klassbalans för y")
+```
+
+Även de olika sportkategorierna är nästan helt jämna:
+
+```{r echo=FALSE}
+kable(round(prop.table(table(data$sport_category))*100, 2), 
+      col.names = c("Sport", "Procent %"), caption = "Klassbalans sporter")
+
+Explorativ_tabell <- data.frame(
+  Variabel = c("BMI", "AGE", "Excercise frequency per week"),
+  Medelvärde = c(round(mean(data$bmi), 1), round(mean(data$age), 1), round(mean(data$exercise_frequency_per_week), 1)
+),
+Standard_avvikelse = c(round(sd(data$bmi), 1), round(sd(data$age), 1), round(sd(data$exercise_frequency_per_week), 1))
+ )
+
+kable(Explorativ_tabell, caption = "Beskrivande statistik")
+
+```
+
+Tabell 4 visar att den genomsnittliga BMI för studenterna är 22.7 och standardavvikelsen är 3.78, intervallet av BMI är då mellan 18.9 och 26.5 vilket visar en rimlig spridning från undervikt till lätt övervikt/muskulös byggnad.
+
+Genomsnittsåldern är 21 år med en standardavvikelse på 2.58 år så de flesta studenterna befinner sig mellan åldern 18.4 till 23.6 år vilket är typisk population av högskolestudenter.
+
+Studenter tränar i genomsnitt 4 gånger per vecka med en standardavvikelse på 1.48 pass/vecka, det innebär att de flesta tränar mellan 2.5 och 5.5 gånger i veckan vilket visar att det är en relativt fysiskt och aktiv grupp.
+
+```{r echo=FALSE, fig.cap="Sprinthastighet för olika prestationsnivåer", fig.pos="H", fig.align='center', out.width="70%", fig.height=5}
+# Sätt ordningen på kategorierna
+data$performance_category <- factor(data$performance_category, 
+                                       levels = c("Low", "Moderate", "High", "Very High", "Excellent"))
+
+# Kör boxplotten igen
+boxplot(sprint_speed_kmh ~ performance_category, 
+        data = data,
+        main = "Sprinthastighet per prestationsnivå",
+        xlab = "Prestationsnivå",
+        ylab = "Sprinthastighet (km/h)",
+        col = "lightblue")
+```
+
+Om man kollar på diagram 1 som visar sprinthastighet per prestationsnivå så ser man att det finns en tydlig positiv relation mellan sprinthastighet och prestationsnivå där gruppen Low har lägst median (ca 19 km/h) följt av Moderate (ca 20.5 km/h), High (ca 21.5 km/h) och Excellent (ca 24 km/h).
+
+För många regressionsmodeller så kan det vara av intresse att se om våra X-variabler är starkt korrelerade, nedan syns en korrelationsplot mellan våra förklarande variabler:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap="Korrelationsdiagram för X", fig.pos="H", fig.align='center', out.width="70%", fig.height=5}
+# Korrelationer över X-variablerna:
+corr_mat <- cor(
+  model.matrix(performance_category ~ . - student_id - sport_category, 
+               data = data)[,-1]) 
+library(corrplot)
+corrplot(corr_mat, method = "color")
+```
+
+De 3 starkaste korrelationerna är mellan bmi och vikt (0.82), kön och längd (0.64) samt kön och vikt (0.54). Vi kollar vidare på detta under sektion 3.2.
+
+\clearpage
+
+## Databearbetning
+
+Nedan har vi slumpmässigt delat upp datan i en träningsmängd (80% av observationerna), en validerings- (10%) och testmängd (10%) med hjälp av caret paketet i R:
+
+```{r echo = FALSE, message=FALSE, warning=FALSE}
+library(caret)
+set.seed(10)
+train_index <- createDataPartition(data$performance_category, 
+                                   p = 0.8, list = FALSE)
+trainingData <- data[train_index, ]
+temp_data <- data[-train_index, ]
+
+val_index <- createDataPartition(temp_data$performance_category, 
+                                 p = 0.5, list = FALSE)
+valData  <- temp_data[val_index, ]
+testData <- temp_data[-val_index, ]
+
+# Gör lämpliga modellmatriser och tar bort oönskade variabler
+X <- model.matrix(performance_category ~ . - student_id - sport_category, 
+                  data = trainingData)[,-1] # inget intercept 
+
+Y <- trainingData$performance_category
+
+X_val <- model.matrix(performance_category ~ . - student_id - sport_category, 
+                      data = valData)[,-1]
+Y_val <- valData$performance_category
+
+X_test <- model.matrix(performance_category ~ . - student_id - sport_category, 
+                       data = testData)[,-1]
+Y_test <- testData$performance_category
+
+# Skalar validerings och test X efter träningsmedelvärde:
+X <- scale(X, center = TRUE, scale = TRUE)
+standard_mean <- attr(X, "scaled:center")
+standard_sd <- attr(X, "scaled:scale")
+X_val <- scale(X_val, center = standard_mean, scale = standard_sd)
+X_test <- scale(X_test, center = standard_mean, scale = standard_sd)
+
+library(kableExtra)
+add_header_above(kable_input = kable(
+            data.frame("Träning"=nrow(trainingData), 
+                       "Valid."=nrow(valData), 
+                        "Test"=nrow(testData)), caption = "Observationer efter datamängd"), 
+            header = c("Antal observationer" = 3)) # Header 3 kolumner bred
+
+freqsVal <- as.data.frame(prop.table(table(valData$performance_category))*100)
+freqsTest <- as.data.frame(prop.table(table(valData$performance_category))*100)
+
+kable(data.frame(
+  Träning = prop.table(table(trainingData$performance_category))*100,
+  Validering = freqsVal$Freq,
+  Test = freqsTest$Freq), 
+  col.names = c("Nivå", "Träning (%)", "Validering (%)", "Test (%)"), 
+  caption = "Klassbalanser efter datamängd")
+```
+
+Vi ser från tabell 6 att funktionen createDataPartition gjort stratifierade urval med responsen som stratifieringsvariabel, därav får vi perfekta klassbalanser i både tränings-, validerings- och testdatan.
+
+Den ursprungliga datamängden innehåller inga saknade värden, och ingenting som verkar felkodat.
+
+\clearpage
+
+# Metod
+
+## Teori och praktisk metod
+
+Vi kommer att skapa 4 stycken typer av modeller och jämföra de för att se vilken modell som verkar bäst för prediktion och om modellerna kan ge information om viktigheten av variablerna m.a.p responsvariabeln. Modellerna beskrivs nedan och därefter beskrivs praktisk implementering. För nedanstående modeller så har vi, som nämnt i kapitel 2.1, delat upp datan i en träningsmängd (80% av datan), en valideringsmängd för att hitta bra hyperparametrar (10% av datan) samt en testmängd (10% av datan). Vi har utvärderat samtliga modeller med hjälp av förväxlingsmatriser, dess träffsäkerheter och de klass specifika måtten sensitivitet, specificitet och precision.
+
+## Logistisk Lasso Regression
+
+Lasso regression är en regulariseringsmetod som krymper $\beta$-skattningarna mot noll genom att lägga in bestraffningstermen $\lambda \sum_{j=1}^{p}{|\beta_j|}$ till förlustfunktionen, dvs en $\ell_1$-bestraffning. Skillnaden mellan detta och en ridge modell är att vissa $\beta$-skattningar blir lika med noll i lassomodellen, vilket kan peka mot vilka variabler som verkar vara viktigast **(James et al., 2023)**.
+
+För praktisk implementering av Lasso så kommer vi att utföra K-fold korsvalidering för att få fram det bästa värdet på $\lambda$ med avseende på klassifieringsfel. Dvs, vi väljer det värdet på lambda som minimerar förlustfunktionen. Vi väljer default värdet på k för R funktionen cv.glmnet, vilket är k = 10. Vi utgår också från glmnets egenskapade sökgrid för $\lambda$, som den skapar utifrån våran data. I glmnet funktionen så utgår vi från $\alpha = 1$
+
+## Elastic Net Regression
+
+På grund av att lassomodellen kan komma att sätta en variabels koefficient till noll när den är starkt korrelerad med en annan variabel (som att modellen "väljer ut" en av variablerna) så kan vi använda elastiska nät, som motverkar kolinjäritet mellan variablerna. Denna modell lägger både till en $\ell_1$ och $\ell_2$ bestraffningsterm till förlustfunktionen. Resultatet blir att, även om $X_i$ och $X_j$ är starkt korrelerade, så krymper deras $\beta$-skattningar tillsammans istället för att en koefficient sätts till noll och en annan hålls skild från noll. Detta kan tillåta oss att behålla vissa variabler som kanske är viktiga, men som lassomodellen tar bort **(GeeksForGeeks 2025)**.
+
+Här så använder vi också en sökning efter bästa $\lambda$ värdet med hjälp av 10 fold korsvalidering, och vi låter glmnet välja sin egna sökgrid som den skapar utifrån våran data. Exakta antalet $\lambda$ värden som testas verkar variera baserat på vilken vilken modelltyp man använder, dvs om man använder lasso, elastic net eller ridge. För detaljer kring algoritmen och hur glmnet fungerar, se glmnet dokumentation under referenser **(Friedman et al. 2026)**. För både Elastic Net och Lasso utgår vi från en standardiserad modellmatris. I glmnet funktionen så utgår vi från argumentet $\alpha = 0.5$ när vi utför elastic net.
+
+## Neurala nätverk
+
+Vi ska även bygga neurala nätverk som mest ska fungera som en bra prediktionsmodell, inte för något beskrivande syfte. Som optimeringsalgoritm har vi valt adam optimzier, som är tänkt att snabba på inlärningsprocessen för modellen **(Andrew Ng, 2017)**. Vi utgår också från direkt validering med en färdigskapad valideringsmängd. Gällande inputmatrisen för X så kommer den att standardiseras och responsvariabeln kommer att one-hot kodas. Vi kommer att skapa modeller med följande kombinationer av hyperparametrar:
+
+- 1 respektive 2 dolda lager, ökningen av dolda lager tänkt att öka modellkomplexiteten och se om det förbättrar prestation
+
+- 32 respektive 64 noder per dolt lager,
+
+- 0 respektive 1 dropout lager, tänkt att lägga till en regulariseringskomponent i modellen för att motverka överanpassning
+
+- learning rates i adam_optimizer: 0.01, 0.001 och 0.0001 som styr inlärningstakten
+
+vilket leder till att vi jämför 24 olika neurala nätverk totalt. Med hjälp av en for-loop i R så kommer vi spara ner hyperparametervärdena som ledde till den högsta valideringsträffsäkerheten. Vi sparar även ner vid vilken epok som den högsta träffsäkerhet skedde per modell. När vi kommit fram till den bästa modellen så använder vi det nedsparade värdet som antalet epoker. Exempelvis, låt oss säga att den bästa modellen har någon specifik kombination av hyperparametervärden och nådde sin högsta valideringsaccuracy vid epok 12, då kommer vi att träna den slutgiltiga neurala nätverks modellen med 12 epoker.
+
+## XGBoost
+
+XGBoost är en en avancerad metod inom maskininlärning där man kombinerar flera beslutsträd och bygger en kraftfull prediktionsmodell genom en iterativ process som fokusera på att minimera fel. Denna stegvisa förbättringen drivs av gradientbaserad optimering, detta betyder att modellen använder information om sina prediktionsfel för att förbättra sina resultat genom att uppdatera beslutsträdens parametrar. XGBoost använder en teknik som kallas gradient boosting. Vad modellen gör är att den börjar med att skapa ett enkelt beslutsträd och lägger sedan successivt till fler träd. Varje nytt träd korrigerar de fel som de tidigare träden har gjort. Detta fortsätter tills en förutbestämt antal träd har uppnåtts eller tills modellens prestanda inte längre förbättras i någon större utsträckning **(Crossman-Smith, 2024)**.
+
+Hur vi bildade vår XGBoost modell är att vi har olika värden för våra hyperparametrar och skapar en 5-faldig korsvalidering som testar 90 olika modeller och 100 antal träd. Den hittar modellen med den lägsta mlogloss. Mlogloss är ett utvärderingsmått som mäter skillnaden mellan de predikterade sannolikheterna för de olika klasserna och de faktiska klassernas etiketter. Lägre värde indikerar att modellen presterar bättre **(XGBoosting, 2024)**.
+
+De hyperparametrarna som vi tänkte använda oss av var:
+
+- **max_depth**, som är den maximala djupet av ett träd, att öka max_depth kan orsaka överanpassning
+
+- **min_child_weight**, som är den minsta summan av instansvikt som krävs i en barnnod, att öka min_child_weight gör algoritmen mer konservativ
+
+- **subsample**, procentandelen av tränings datat som XGboost drar urval på innan den växer träden, detta hindrar överanpassning
+
+- **colsample_bytree**, är subsaple kvoten för kolumner när varje träd konstrueras, delurval sker en gång per konstruerad träd
+
+- **learning_rate**, använda för att undvika överanpassning, efter varje boostinstefg får vi direkt vikterna för nya funktioner och learning_rate krymper funktionsvikterna för att göra boostingprocessen mer konservativ **(XGBoost Developers 2026)**
+
+\clearpage
+
+# Resultat
+
+## Logistisk lasso regression
+
+Här utgår vi från träningsmängden utför korsvalideringen för att få fram det bästa värdet på hyperparametern $\lambda$. Nedan har vi skapat en plot över olika värden på $-\ln(\lambda)$ för våran lasso modell som har olika effekter på klassifieringsfelet:
+
+```{r echo=FALSE, message=FALSE, fig.cap="Lambda värden mot klassifierngsfel"}
+library(glmnet)
+CV1 <- cv.glmnet(X, Y, type.measure = "class", 
+                 family = "multinomial", 
+                 alpha = 1) # Lasso
+bestlambda <- CV1$lambda.min
+plot(CV1)
+model1 <- glmnet(X, Y, alpha = 1, lambda = bestlambda, family = "multinomial")
+
+kable(data.frame(
+Antal=length(CV1$lambda),
+minsta=round(min(CV1$lambda), 7),
+hogsta=max(CV1$lambda), 
+basta=bestlambda
+), col.names = c("Antal testade lambda", "Minsta lambda", "Högsta lambda", "Bästa lambda"), 
+caption = "Testade lambda värden, lasso")
+```
+
+Tabell 7 visar det optimala hyperparametervärdet som vi landade på, som är $\lambda \approx 0.0005$. Nedan syns förväxlingsmatriserna för respektive datamängd, träffsäkerheten (accuracy) för alla datamängder, samt klasspecifika mått för alla datamängder (träning, validering och test):
+
+\clearpage
+
+```{r echo=FALSE, message=FALSE}
+# Utvärdering träning 
+predsTrain <- predict(model1, newx = X, type = "class")
+preds_train_factor <- factor(predsTrain, levels = levels(Y))
+mat1_train <- confusionMatrix(data = preds_train_factor, reference = Y)
+# Förväxlingsmatris 
+confmat1_train <- mat1_train$table 
+
+# Validering utvärdering
+predsVal <- predict(model1, newx = X_val, type = "class")
+preds_val_factor <- factor(predsVal, levels = levels(Y_val))
+mat1_val <- confusionMatrix(data = preds_val_factor, reference = Y_val)
+# Förväxlingsmatris 
+confmat1_val <- mat1_val$table
+
+# Test utvärdering 
+#predsTest <- predict(model1, newx = X_test, type = "class")
+#preds_test_factor <- factor(predsTest, levels = levels(Y_test))
+#mat1_test <- confusionMatrix(data = preds_test_factor, reference = Y_test)
+# Förväxlingsmatris test 
+#confmat1_test <- mat1_test$table
+
+# Kombinerad förväxlingsmatris för att spara space:
+comb1 <- cbind(confmat1_train, confmat1_val)
+
+kable(comb1, col.names = c(colnames(confmat1_train), 
+                           colnames(confmat1_val)), 
+      caption = "Förväxlingsmatriser lasso regression") %>% 
+  add_header_above(c("Predikterad" = 1, "Faktisk" = 10)) %>% 
+  add_header_above(c(" " = 1, "Träning" = 5, "Validering" = 5)) %>% 
+  column_spec(6, border_right = TRUE)
+
+#kable(confmat1_test, col.names = colnames(confmat1_test), 
+#      caption = "Förväxlingsmatris för testdata, lassomodell") %>% 
+#  add_header_above(c("Predikterad" = 1, "Faktisk" = 5)) %>% 
+#  add_header_above(c(" " = 1, "Testdata" = 5))
+
+# Accuracy 
+acc1_train <- paste("Accuracy =", round(mat1_train$overall["Accuracy"]*100, 1), "%")
+header1_train <- setNames(4, acc1_train)
+# Klass specifika mått 
+evals1_train <- mat1_train$byClass
+add_header_above(
+  kable_input = kable(round(evals1_train[,c(1:2, 5)], 3), 
+                      caption = "Utvärdering träning, lasso"), 
+  header = header1_train) 
+
+# Accuracy 
+acc1_val <- paste("Accuracy =", round(mat1_val$overall["Accuracy"]*100, 1), "%")
+header1_val <- setNames(4, acc1_val) 
+# Klass specifika mått 
+evals1_val <- mat1_val$byClass
+add_header_above(
+  kable_input = kable(round(evals1_val[,c(1:2, 5)], 3), 
+                      caption = "Utvärdering validering, lasso"), 
+  header = header1_val) 
+
+# Accuracy 
+#acc1_test <- paste("Accuracy =", round(mat1_test$overall["Accuracy"]*100, 1), #"%")
+#header1_test <- setNames(4, acc1_test) 
+# Klass specifika mått 
+#evals1_test <- mat1_test$byClass
+#add_header_above(
+#  kable_input = kable(round(evals1_test[,c(1:2, 5)], 3), 
+#                      caption = "Utvärdering testdata, lasso"), 
+#  header = header1_test) 
+```
+
+Vi ser att övergripande träffsäkerheten är högre för valideringsmängden (72%) än för träningsmängden (70%), samt att klasserna "Low" och "Excellent" har märkvärt högre sensitivitet än resterande kalsser. Motsvarande gäller också för specificitet och precision. Modellen är alltså bättre på att klassifiera studenter som presterar på en låg eller utmärkt nivå, än studenter som är någonstans mittemellan. Modellen är sämst på att klassifiera studenter som presterar på nivån "high" i sin sport, som är den mellersta klassen. Notera att R har tagit bort sista 0:an för valideringsträffsäkerheten i tabell 10, vilket kan få det att se ut som att olika avrundningar har skett, men alla träffsäkerheter har avrundats till 1 decimal (om träffsäkerheterna anges i procent).
+
+Nedan finns $\beta$-skattningar för respektive variabel, för alla olika nivåer:
+
+```{r echo=FALSE}
+beta1 <- model1$beta$Excellent
+beta2 <- model1$beta$`Very High`
+beta3 <- model1$beta$High
+beta4 <- model1$beta$Moderate
+beta5 <- model1$beta$Low
+
+kable(round(cbind(as.data.frame(beta1[,1]), 
+                  as.data.frame(beta2[,1]), as.data.frame(beta3[,1]), 
+                  as.data.frame(beta4[,1]), as.data.frame(beta5[,1])), 3), 
+      col.names = c("Variabel", "Excellent", "Very High", "High", "Moderate", "Low"), 
+      caption = "Beta skattningar för olika responsnivåer")
+```
+
+Vi ser att ett par $\hat{\beta}$ har satts till noll av lasso modellen, främst för längd och vikt. Detta kan ha orsakats den starka korrelationen mellan dessa variabler och bmi. Ålder och kön har också fått väldigt låga koefficientvärden jämfört med de flesta variabler. Vi tolkar detta som att lassomodellen har bedömt dessa variabler som relativt oviktiga, jämfört med alla variabler.
+
+Nästan alla koefficienter för nivån "High" är lika med noll, med längdvariabeln som enda undantag av någon anledning. I vanlig multinominal logistisk regression (utan tillagda bestraffningstermer) så fås en tydlig referenskategori som hjälper till med tolkningen av värdet på $\beta$-skattningarna, genom ett log-odds perspektiv (McNulty ). I vårat fall med kategorin "High" så är det inte lika tydligt att "High" faktiskt är en referenskategori eftersom iallafall en av dess $\beta$-skattningar är nollskilda. Vi väljer dock att anta att glmnet har valt detta som någon sorts referenskategori. Då kan vi exempelvis tolka "excercise_frequency_per_week" för nivån "Excellent" på följande sätt: När träningsfrekvensen ökar med 1 dag per vecka så ökar det **relativa** oddset för nivå "Excellent" med faktorn $\exp(\hat\beta_{15}) = \exp(1.113) \approx 3$, dvs med 200%, givet att alla andra variabler hålls konstanta. Med relativt odds menar vi här oddset mellan de två kategorierna "Excellent" och "High" där de andra kategorierna ignoreras, för "vanliga" eller "övergripande" odds tas hänsyn till alla kategorier. Vi vill dock behandla våran tolkning med försiktighet, för det är inte lika tydligt att "High" faktiskt är en referenskategori som det skulle vara i en icke-regulariserad logistisk regression med exempelvis glm() funktionen.
+
+\clearpage
+
+## Elastic Net
+
+Nedan har vi fått fram det ett optimalt värde på $\lambda$ med korsvalidering:
+
+```{r echo=FALSE, fig.cap="Klassifieringsfel mot lambda"}
+# Elastic Net 
+CV2 <- cv.glmnet(X, Y, type.measure = "class", 
+                 family = "multinomial", 
+                 alpha = 0.5) # Elastic Net
+plot(CV2)
+bestlambda2 <- CV2$lambda.min
+model2 <- glmnet(X, Y, alpha = 0.5, lambda = bestlambda2, family = "multinomial")
+
+kable(data.frame(
+Antal=length(CV2$lambda),
+minsta=round(min(CV2$lambda), 7),
+hogsta=max(CV2$lambda), 
+basta=bestlambda2
+), col.names = c("Antal testade lambda", "Minsta lambda", "Högsta lambda", "Bästa lambda"), 
+caption = "Testade lambda värden, Elastic Net")
+```
+
+Detta optimum är ungefär $\lambda \approx \frac{3}{10000}$ och ett högre antal värden på $\lambda$ behövde testas. Nedan finns förväxlingsmatrisen och utvärderingsmåtten för tränings- ,validerings- och testdatan:
+
+```{r echo=FALSE}
+# Utvärdering träning 
+predsTrain <- predict(model2, newx = X, type = "class")
+preds_train_factor <- factor(predsTrain, levels = levels(Y))
+mat2_train <- confusionMatrix(data = preds_train_factor, reference = Y)
+# Förväxlingsmatris 
+confmat2_train <- mat2_train$table 
+
+# Validering utvärdering
+predsVal <- predict(model2, newx = X_val, type = "class")
+preds_val_factor <- factor(predsVal, levels = levels(Y_val))
+mat2_val <- confusionMatrix(data = preds_val_factor, reference = Y_val)
+# Förväxlingsmatris 
+confmat2_val <- mat2_val$table
+
+# Test utvärdering
+#predsTest <- predict(model2, newx = X_test, type = "class")
+#preds_test_factor <- factor(predsTest, levels = levels(Y_test))
+#mat2_test <- confusionMatrix(data = preds_test_factor, reference = Y_test)
+# Förväxlingsmatris 
+#confmat2_test <- mat2_test$table
+
+# Kombinerad förväxlingsmatris för att spara space:
+comb2 <- cbind(confmat2_train, confmat2_val)
+
+kable(comb2, col.names = c(colnames(confmat2_train), 
+                           colnames(confmat2_val)), 
+      caption = "Förväxlingsmatriser Elastic Net Regression") %>% 
+  add_header_above(c("Predikterad" = 1, "Faktisk" = 10)) %>% 
+  add_header_above(c(" " = 1, "Träning" = 5, "Validering" = 5)) %>% 
+  column_spec(6, border_right = TRUE)
+
+#kable(confmat2_test, col.names = colnames(confmat2_test), 
+#      caption = "Förväxlingsmatris testdata") %>% 
+#  add_header_above(c("Predikterad" = 1, "Faktisk" = 5)) %>% 
+#  add_header_above(c(" " = 1, "Testdata" = 5))
+
+# Accuracy 
+acc2_train <- paste("Accuracy =", round(mat2_train$overall["Accuracy"]*100, 1), "%")
+header2_train <- setNames(4, acc2_train)
+# Klass specifika mått 
+evals2_train <- mat2_train$byClass
+add_header_above(
+  kable_input = kable(round(evals2_train[,c(1:2, 5)], 3), 
+                      caption = "Utvärdering träning, Elastic Net"), 
+  header = header2_train) 
+
+# Accuracy 
+acc2_val <- paste("Accuracy =", round(mat2_val$overall["Accuracy"]*100, 1), "%")
+header2_val <- setNames(4, acc2_val) 
+# Klass specifika mått 
+evals2_val <- mat2_val$byClass
+add_header_above(
+  kable_input = kable(round(evals2_val[,c(1:2, 5)], 3), 
+                      caption = "Utvärdering validering, Elastic Net"), 
+  header = header2_val) 
+
+# Accuracy 
+#acc2_test <- paste("Accuracy =", round(mat2_test$overall["Accuracy"]*100, 1), #"%")
+#header2_test <- setNames(4, acc2_test) 
+# Klass specifika mått 
+#evals2_test <- mat2_test$byClass
+#add_header_above(
+#  kable_input = kable(round(evals2_test[,c(1:2, 5)], 3), 
+#                      caption = "Utvärdering test, Elastic Net"), 
+#  header = header2_test) 
+
+```
+
+Utvärderingsmåtten verkar inte skilja sig mycket alls jämfört med lassomodellens utvärderingsmått. Träffsäkerheten är oförändrad, och mönstret för de klass specifika måtten är väldigt liknande. Återigen så är modellen bäst på att klassifiera studenter på väldigt höga och väldigt låga nivåer, och utan tvekan sämst på att klassifiera studenter på "mellan" nivåerna. Nedan finns $\beta$-skattningarna för Elastic Net modellen:
+
+```{r echo=FALSE}
+beta1 <- model2$beta$Excellent
+beta2 <- model2$beta$`Very High`
+beta3 <- model2$beta$High
+beta4 <- model2$beta$Moderate
+beta5 <- model2$beta$Low
+
+kable(round(cbind(as.data.frame(beta1[,1]), 
+                  as.data.frame(beta2[,1]), as.data.frame(beta3[,1]), 
+                  as.data.frame(beta4[,1]), as.data.frame(beta5[,1])), 3), 
+      col.names = c("Variabel", "Excellent", "Very High", "High", "Moderate", "Low"), 
+      caption = "Beta skattningar, Elastic Net")
+```
+
+Vi ser att det nu finns fler nollskilda $\hat{\beta}$ värden kopplat till vikt och längd variablerna (jämfört med lassomodellen), men överlög så är $\hat{\beta}$ värdena inte markant annorlunda. Nästa alla koefficienter för nivån "High" är fortfarande noll, men den nollskilda variabeln har ändrats till att vara bmi. Vi tolkar tabell 16 och tabell 11 över $\beta$-skattningar som att ålder, kön, längd, vikt och bmi är mindre viktiga än resterande variabler för prediktion av responsen. I förra tolkningen för värdet av en $\beta$-skattningen använde vi den positiva lutningen för excercise_frequency_per_week (vars värde är oförändrat), vi kan nu testa tolka den negativa lutningen som ges av heart_rate_bpm på nivån "Excellent". Vi tolkar det som följande: När hjärtslag ökar med 1 slag per minut så minskar det **relativa** oddset för "Excellent" (mot "High") med faktorn $\exp(-1.151) \approx 0.32$, dvs det relativa oddset minskar med 68%, givet att alla andra variabler hålls konstanta.
+
+\clearpage
+
+## Neurala nätverk
+
+Nedan så har vi utfört grid search för att försöka hitta en bra modell, med följande hyperparameterkombinationer: inlärningshastighet $= \{0.01, \ 0.001, \ 0.0001\}$, antal gömda lager $= \{1, \ 2\}$, antal noder per dolt lager $= \{32, \ 64\}$ samt antal dropout lager $= \{0, \ 1\}$. Totalt så har 24 neurala nätverksmodeller tränats och vi har jämfört dessa med avseende på högsta uppnådd accuracy:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+Y_train_vec <- trainingData$performance_category
+Y_val_vec <- valData$performance_category
+Y_test_vec <- testData$performance_category
+
+library(keras3)
+library(tensorflow)
+Y_train <- to_categorical(as.numeric(Y_train_vec) - 1, num_classes = 5) # Gör om så att klasserna går  
+Y_val <- to_categorical(as.numeric(Y_val_vec) - 1, num_classes = 5) # från 0-4 för keras ist för 1-5
+
+X_features <- subset(trainingData, 
+                     select = -c(student_id, 
+                                 sport_category, 
+                                 performance_category))
+X_features_val <- subset(valData, 
+                         select = -c(student_id, 
+                                     sport_category, 
+                                     performance_category))
+X_features_test <- subset(testData, 
+                          select = -c(student_id, 
+                                      sport_category, 
+                                      performance_category))
+
+X_train_mat <- model.matrix(~ . - 1, data = X_features) 
+X_val_mat <- model.matrix(~ . - 1, data = X_features_val)
+X_test_mat <- model.matrix(~ . - 1, data = X_features_test)
+
+X_train_scaled <- scale(X_train_mat)
+
+# Skalar validerings och test X efter träningsmedelvärde:
+train_mean <- attr(X_train_scaled, "scaled:center")
+train_sd <- attr(X_train_scaled, "scaled:scale")
+X_val_scaled <- scale(X_val_mat, center = train_mean, scale = train_sd)
+X_test_scaled <- scale(X_test_mat, center = train_mean, scale = train_sd)
+
+
+# Våran search grid och loop 
+hyper_grid <- expand.grid(
+  lr = c(0.01, 0.001, 0.00001), 
+  layers = c(1, 2), 
+  neurons = c(32, 64), 
+  use_dropout = c(TRUE, FALSE)
+)
+
+history_list <- list()
+set_random_seed(123)
+
+for (i in 1:nrow(hyper_grid)) {
+  params <- hyper_grid[i, ]
+  
+  nn_model <- keras_model_sequential()
+  
+  nn_model %>% 
+    layer_dense(units = params$neurons, 
+                activation = "relu", 
+                input_shape = c(ncol(X_train_scaled)))
+  
+  if (params$use_dropout) {
+    nn_model %>% layer_dropout(rate = 0.2) 
+  }
+  if (params$layers == 2) {
+    nn_model %>% layer_dense(units = params$neurons, 
+                             activation = "relu")
+    if (params$use_dropout) {
+      nn_model %>% layer_dropout(rate = 0.2)
+    }
+  }
+  
+  nn_model %>% layer_dense(units = 5, activation = "softmax")
+  
+  nn_model %>% compile(
+    loss = "categorical_crossentropy", 
+    optimizer = optimizer_adam(learning_rate = params$lr), 
+    metrics = c("accuracy")
+  )
+  
+  history <- nn_model %>% fit(
+    x = X_train_scaled, 
+    y = Y_train, 
+    epochs = 30, 
+    batch_size = 32, 
+    validation_data = list(X_val_scaled, Y_val), 
+    verbose = 0
+  )
+  
+  model_name <- paste("LR", params$lr, "L", params$layers, "N", params$neurons, "Drop", params$use_dropout, sep = "_") 
+  history_list[[model_name]] <- history
+}
+
+# Väljer ut högsta valideringsaccuracy från varje modell:  
+max_val_accuracies <- sapply(history_list, function(hist) {
+  max(hist$metrics$val_accuracy)
+})
+
+# Skapar tabell för modellerna 
+results_df <- data.frame(
+  Modell = names(max_val_accuracies), 
+  Val_Accuracy = round(max_val_accuracies, 4), 
+  row.names = NULL
+)
+
+# Sorterar efter accuracy 
+results_df <- results_df[order(-results_df$Val_Accuracy), ]
+
+best_model <- results_df[1, ] # Bästa modell har default lr, 1 gömt lager, 
+                              # 32 neuroner och saknar dropout lager 
+
+
+kable(cbind(head(results_df, 5), tail(results_df, 5)), 
+      caption = "De 5 bästa och sämsta modellerna från grid search") %>% 
+  add_header_above(header = c(" " = 1, "Bästa" = 2, "Sämsta" = 2)) %>% 
+  column_spec(3, border_right = "TRUE")
+
+
+```
+
+I tabell 17 så är LR = learning rate, L står för "antal dolda lager", N är antal noder och drop_TRUE indikerar att ett dropout lager är inkluderat. Vi ser att modellen med högst accuracy har en learning rate på 0.001, har 1 gömt lager, 32 neuroner i det gömda lagret samt ett dropout lager. Högsta uppnåda valideringsaccuracy är 0.7173.
+
+Nedan visualiseras nätverksarkitekturen och därefter anpassar vi denna modell till träningsdatan:
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, out.width="35%", fig.align='center', fig.cap="Bästa neurala nätverksstrukturen enligt grid search"}
+
+# Epoken där accuracy var högst för bästa modellen
+optimal_epok <- which.max(
+  history_list$LR_0.001_L_1_N_32_Drop_TRUE$metrics$val_accuracy)
+
+### Den slutgiltiga modellen ###
+set_random_seed(123)
+
+final_NN_model <- keras_model_sequential()
+
+final_NN_model %>% 
+  layer_dense(units = 32, 
+              activation = "relu", 
+              input_shape = c(ncol(X_train_scaled)), 
+              name = "Gomt_lager") %>% 
+  layer_dropout(rate = 0.2, 
+                name = "Dropout_lager") %>%
+  layer_dense(units = 5, 
+              activation = "softmax", 
+              name = "Output_lager") 
+
+final_NN_model %>% compile(
+  loss = "categorical_crossentropy", 
+  optimizer = optimizer_adam(learning_rate = 0.001), 
+  metrics = c("accuracy")
+)
+
+# Visualisering av NN-strukturen
+plot(final_NN_model, to_file = "model_nn.png", 
+     show_shapes = TRUE, show_layer_names = TRUE)
+include_graphics("model_nn.png")
+
+```
+
+```{r, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+history <- final_NN_model %>% fit(
+  x = X_train_scaled, 
+  y = Y_train, 
+  epochs = optimal_epok, 
+  batch_size = 32, 
+  validation_data = list(X_val_scaled, Y_val), 
+  verbose = 0
+)
+
+# Klistrar in diagram med LaTeX
+png("history_plot.png", width = 800, height = 600, res = 150)
+plot(history)
+dev.off()
+
+```
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{history_plot.png}
+\caption{Accuracy och fel per epok, utvald modell}
+\end{figure}
+
+Eftersom att den högsta uppnådda valideringsträffsäkerheten för utvalda modellen skedde vid epok nummer 12, så har vi valt att anpassa modellen med det antalet epoker. Det verkar inte heller ske någon stor modellförbättring efter epok 4. Nedan har vi modellens förväxlingsmatriser, träffsäkerheter samt klasspecifika mått, kopplat till träningsdatan, valideringsdata och testdatan:
+
+```{r, echo=FALSE, message=FALSE}
+# Förväxlingsmatris träning 
+pred_probs_train <- final_NN_model %>% predict(X_train_scaled, verbose = 0)
+pred_indices_train <- max.col(pred_probs_train)
+pred_classes_train <- levels(Y_train_vec)[pred_indices_train]
+pred_classes_factor_train <- factor(pred_classes_train, levels = levels(Y_train_vec))
+conf_matrix_object_train <- confusionMatrix(data = pred_classes_factor_train, reference = Y_train_vec)
+conf_matrix_train <- conf_matrix_object_train$table
+
+# Förväxlingsmatris validering 
+pred_probs_val <- final_NN_model %>% predict(X_val_scaled, verbose = 0)
+pred_indices_val <- max.col(pred_probs_val)
+pred_classes_val <- levels(Y_val_vec)[pred_indices_val]
+pred_classes_factor_val <- factor(pred_classes_val, levels = levels(Y_val_vec))
+conf_matrix_object_val <- confusionMatrix(data = pred_classes_factor_val, reference = Y_val_vec)
+conf_matrix_val <- conf_matrix_object_val$table
+
+
+# Förväxlingsmatris test 
+pred_probs_test <- final_NN_model %>% predict(X_test_scaled, verbose = 0) 
+pred_indices_test <- max.col(pred_probs_test)
+pred_classes_test <- levels(Y_test_vec)[pred_indices_test]
+pred_classes_factor_test <- factor(pred_classes_test, levels = levels(Y_test_vec))
+conf_matrix_object_test <- confusionMatrix(data = pred_classes_factor_test, reference = Y_test_vec)
+conf_matrix_test <- conf_matrix_object_test$table
+
+# Kombinerad förväxlingsmatris, träning och validering:
+comb_NN <- cbind(conf_matrix_train, conf_matrix_val)
+
+kable(comb_NN, col.names = c(colnames(conf_matrix_train), 
+                           colnames(conf_matrix_val)), 
+      caption = "Neurala nätverkets förväxlingsmatriser") %>% 
+  add_header_above(c("Predikterad" = 1, "Faktisk" = 10)) %>% 
+  add_header_above(c(" " = 1, "Träning" = 5, "Validering" = 5)) %>% 
+  column_spec(6, border_right = TRUE)
+
+
+# Snygg förväxlingsmatris test
+#kable(conf_matrix_test, col.names = colnames(conf_matrix_train), 
+#      caption = "Neurala nätverkets förväxlingsmatris för testdata") %>% 
+#  add_header_above(c("Predikterad" = 1, "Faktisk" = 5)) %>% 
+#  add_header_above(c(" " = 1, "Testdata" = 5)) 
+
+# Klasspecifika mått och accuracy, träning 
+acc_train <- paste("Accuracy =", round(conf_matrix_object_train$overall["Accuracy"]*100, 1), "%")
+header_train <- setNames(4, acc_train)
+# Klass specifika mått 
+evals_train <- conf_matrix_object_train$byClass
+add_header_above(
+  kable_input = kable(round(evals_train[,c(1:2, 5)], 3), 
+                      caption = "Utvärdering träning, neuralt nätverk"), 
+  header = header_train) 
+
+# Klasspecifika mått och accuracy, validering 
+acc_val <- paste("Accuracy =", round(conf_matrix_object_val$overall["Accuracy"]*100, 1), "%")
+header_val <- setNames(4, acc_val)
+# Klass specifika mått 
+evals_val <- conf_matrix_object_val$byClass
+add_header_above(
+  kable_input = kable(round(evals_val[,c(1:2, 5)], 3), 
+                      caption = "Utvärdering validering, neuralt nätverk"), 
+  header = header_val) 
+
+# Klasspecifika mått och accuracy, test 
+#acc_test <- paste("Accuracy =", #round(conf_matrix_object_test$overall["Accuracy"]*100, 1), "%")
+#header_test <- setNames(4, acc_test)
+# Klass specifika mått test 
+#evals_test <- conf_matrix_object_test$byClass
+#add_header_above(
+#  kable_input = kable(round(evals_test[,c(1:2, 5)], 3), 
+#                      caption = "Utvärdering testdata, neuralt nätverk"), 
+# header = header_test) 
+
+```
+
+Notera att träffsäkerheten i tabell 20 skiljer sig lite från den högsta uppnådda träffsäkerheten i tabell 17, med mindre än 1 procentenhet. Modellen skapades med de nersparade hyperparametervärdena från sökningen/loopen, men självaste modellen sparades inte av loopen. Vi tror att skillnaden delvis kan förklaras av slumpmässighet i initial tilldelning av vikter, efter avstämning med kursansvarig. I övrigt ser vi att utvärderingsmåtten liknar de från både lasso och elastic net regressionen, och vi ser samma mönster med de klass specifika måtten. Modellen är betydligt bättre på att prediktera "Excellent" och "Low" än resterande klasser.
+
+\clearpage
+
+## XGBoost
+
+Nedan så har vi resultatet från hyperparametersökningen för XGBoost:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+library(mlbench)
+library(caret)
+library(xgboost)
+library(knitr)
+library(kableExtra)
+
+# För att nedanstående kod skulle fungera behövde jag läsa in data på nytt 
+# och göra om processen med att skapa träningsmängd osv 
+# för att vi gjorde på lite olika sätt, beskyller suboptimal kommunikation 
+
+Athlete <- read.csv("C:/Users/Andre/Desktop/Maskin-Inlärning-Kurs/Projekt/student_sports_performance_Dataset.csv")
+
+#Vi gör om vår responsvariabel till faktorer 
+Athlete$performance_category <- factor(Athlete$performance_category, 
+                                       levels = c("Low", "Moderate", "High", "Very High", "Excellent"))
+
+set.seed(10)
+#createDataPartition()
+train_index <- createDataPartition(Athlete$performance_category, 
+                                   p = 0.8, list = FALSE)
+trainingData <- Athlete[train_index, ]
+temp_data <- Athlete[-train_index, ]
+
+val_index <- createDataPartition(temp_data$performance_category, 
+                                 p = 0.5, list = FALSE)
+valData  <- temp_data[val_index, ]
+testData <- temp_data[-val_index, ]
+
+#Vi skapar vår tränings, validerings och test data och tar bort student id och sport_category.
+trainingData <- trainingData[, !names(trainingData) %in% c("student_id", "sport_category")]
+valData <- valData[, !names(valData) %in% c("student_id", "sport_category")]
+testData <- testData[, !names(testData) %in% c("student_id", "sport_category")]
+
+#Skapa Y
+y_train <- trainingData$performance_category
+y_val <- valData$performance_category
+y_test <- testData$performance_category
+
+#Skapa X
+X_train_xgb <- trainingData[, !names(trainingData) %in% "performance_category"]
+X_val_xgb <- valData[, !names(valData) %in% "performance_category"]
+X_test_xgb <- testData[, !names(testData) %in% "performance_category"]
+
+#Gör gender till faktor
+X_train_xgb$gender <- factor(X_train_xgb$gender)
+X_val_xgb$gender <- factor(X_val_xgb$gender, levels = levels(X_train_xgb$gender))
+X_test_xgb$gender <- factor(X_test_xgb$gender, levels = levels(X_train_xgb$gender))
+
+#Skapar model.matrix
+X_train_xgb <- model.matrix(~ . - 1, data = X_train_xgb)
+X_val_xgb <- model.matrix(~ . - 1, data = X_val_xgb)
+X_test_xgb <- model.matrix(~ . - 1, data = X_test_xgb)
+
+#Gör y till numeriska
+y_train_xgb <- as.numeric(y_train) - 1
+y_val_xgb <- as.numeric(y_val) - 1
+y_test_xgb <- as.numeric(y_test) - 1
+
+
+param_grid <- expand.grid(
+  max_depth = c(3, 5, 7),
+  min_child_weight = c(1, 3),
+  subsample = c(0.6, 0.8, 1.0),
+  colsample_bytree = c(0.8),
+  learning_rate = c(0.1)
+)
+
+results_cv <- data.frame()
+
+set.seed(10)
+
+dtrain <- xgb.DMatrix(
+  data = X_train_xgb,
+  label = y_train_xgb
+)
+
+#Skapar en for loop som testar alla kombinationer
+for (i in 1:nrow(param_grid)) {
+  
+  params <- list(
+    objective = "multi:softprob",
+    num_class = 5,
+    max_depth = param_grid$max_depth[i],
+    min_child_weight = param_grid$min_child_weight[i],
+    subsample = param_grid$subsample[i],
+    colsample_bytree = param_grid$colsample_bytree[i],
+    learning_rate = param_grid$learning_rate[i],
+    eval_metric = "mlogloss", 
+    nthread = 1, 
+    seed = 1
+  )
+  
+  cv_model <- xgb.cv(
+    params = params,
+    data = dtrain,
+    nrounds = 100,
+    nfold = 5,
+    verbose = FALSE
+  )
+  
+  # Average validation mlogloss
+  cv_error <- cv_model$evaluation_log$test_mlogloss_mean[100]
+  
+  results_cv <- rbind(
+    results_cv,
+    data.frame(
+      max_depth = param_grid$max_depth[i],
+      min_child_weight = param_grid$min_child_weight[i],
+      subsample = param_grid$subsample[i],
+      colsample_bytree = param_grid$colsample_bytree[i],
+      learning_rate = param_grid$learning_rate[i],
+      mlogloss = cv_error
+    )
+  )
+}
+
+results_cv <- results_cv[
+  order(results_cv$mlogloss),
+]
+
+row.names(results_cv) <- NULL
+
+best_params <- results_cv[1, ]
+
+kable(head(results_cv, 5), caption = "De 5 bästa modellerna m.a.p logloss")
+
+```
+
+Här så gjorde vi en grid search i kombination med 5-faldig korsvalidering för att hitta de optimala hyperparametrarna där vi testade 18 olika modeller. Modellernas prestanda utvärderades utifrån genomsnittlig förlustfunktion (mlogloss).
+
+Vi ser då ovan att modellen som ligger i den första raden är den bästa modellen med mlogloss på 0.860. De vinnande hyperparametrarna var max_depth = 7, min_child_weight = 3 och subsample = 0.6 (med fixerade värden för colsample_bytree = 0.8 och learning_rate = 0.1).
+
+Nedan så visas den övergripande träffsäkerheten samt klasspecifika mått för modellen:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+xgb_model <- xgb.train(
+  params = list(
+    objective = "multi:softprob",
+    num_class = 5,
+    max_depth = 7,
+    min_child_weight = 3,
+    subsample = 0.6,
+    colsample_bytree = 0.8,
+    learning_rate = 0.1,
+    eval_metric = "mlogloss", 
+    nthread = 1, # nthread och seed är tänkt att ge reproducerbart resultat
+    seed = 10
+  ),
+  data = dtrain,
+  nrounds = 100
+)
+
+dtraining <- xgb.DMatrix(
+  data = X_train_xgb,
+  label = y_train_xgb
+)
+dval <- xgb.DMatrix(
+  data = X_val_xgb,
+  label = y_val_xgb
+)
+dtest <- xgb.DMatrix(
+  data = X_test_xgb,
+  label = y_test_xgb
+)
+
+
+train_prob <- predict(
+  xgb_model,
+  dtraining
+)
+val_prob <- predict(
+  xgb_model,
+  dval
+)
+test_prob <- predict(
+  xgb_model,
+  dtest
+)
+
+train_prob <- matrix(
+  train_prob,
+  ncol = 5,
+  byrow = FALSE
+)
+val_prob <- matrix(
+  val_prob,
+  ncol = 5,
+  byrow = FALSE
+)
+test_prob <- matrix(
+  test_prob,
+  ncol = 5,
+  byrow = FALSE
+)
+
+train_pred <- max.col(train_prob) - 1
+val_pred <- max.col(val_prob) - 1
+test_pred <- max.col(test_prob) - 1
+
+train_pred <- factor(
+  train_pred, 
+  levels = 0:4, 
+  labels = levels(y_train)
+)
+val_pred <- factor(
+  val_pred,
+  levels = 0:4,
+  labels = levels(y_val)
+)
+test_pred <- factor(
+  test_pred, 
+  levels = 0:4, 
+  labels = levels(y_test)
+)
+
+## Förväxlingsmatriser/Utvärdering ##
+
+#Förväxlingsmatris
+cm <- confusionMatrix(
+  val_pred,
+  y_val
+)
+cm_train <- confusionMatrix(
+  train_pred,
+  y_train
+)
+cm_test <- confusionMatrix(
+  test_pred,
+  y_test
+)
+
+#Skapar en träffsäkerhets tabell
+accuracy_table <- data.frame(
+  Mått = names(cm$overall),
+  Värde = round(as.numeric(cm$overall), 4)
+)
+accuracy_table_train <- data.frame(
+  Mått = names(cm_train$overall),
+  Värde = round(as.numeric(cm_train$overall), 4)
+)
+accuracy_table_test <- data.frame(
+  Mått = names(cm_test$overall),
+  Värde = round(as.numeric(cm_test$overall), 4)
+)
+
+
+#Gör förväxlingsmatrisen till en data.frame
+df <- data.frame(
+  `Klass`       = rownames(cm$byClass),
+  `Sensitivity` = round(cm$byClass[, "Sensitivity"], 4),
+  `Specificity` = round(cm$byClass[, "Specificity"], 4),
+  `Precision` = round(cm$byClass[, "Precision"], 4)
+)
+#Gör förväxlingsmatrisen till en data.frame
+df_train <- data.frame(
+  `Klass`       = rownames(cm_train$byClass),
+  `Sensitivity` = round(cm_train$byClass[, "Sensitivity"], 4),
+  `Specificity` = round(cm_train$byClass[, "Specificity"], 4),
+  `Precision` = round(cm_train$byClass[, "Precision"], 4)
+)
+#Gör förväxlingsmatrisen till en data.frame
+df_test <- data.frame(
+  `Klass`       = rownames(cm_test$byClass),
+  `Sensitivity` = round(cm_test$byClass[, "Sensitivity"], 4),
+  `Specificity` = round(cm_test$byClass[, "Specificity"], 4),
+  `Precision` = round(cm_test$byClass[, "Precision"], 4)
+)
+
+
+
+#Har accuracy som en header
+acc_header <- setNames(4, paste0("Accuracy =", round(cm$overall["Accuracy"]*100,1), " %"))
+#Har accuracy som en header
+acc_header_train <- setNames(4, paste0("Accuracy =", round(cm_train$overall["Accuracy"]*100,1), " %"))
+#Har accuracy som en header
+acc_header_test <- setNames(4, paste0("Accuracy =", round(cm_test$overall["Accuracy"]*100,1), " %"))
+
+
+# Klass specifika validering 
+kable(
+  df,
+  row.names = FALSE,
+  align = c("l", "c", "c"),
+  caption = "Klasspecifik utvärdering för XGBoost (Valideringsdata)"
+) %>%
+  kable_styling(full_width = FALSE) %>%
+  add_header_above(header = acc_header)
+# Klass specifika träning 
+kable(
+  df_train,
+  row.names = FALSE,
+  align = c("l", "c", "c"),
+  caption = "Klasspecifik utvärdering för XGBoost (Träningsdata)"
+) %>%
+  kable_styling(full_width = FALSE) %>%
+  add_header_above(header = acc_header_train)
+# Klass specifika test 
+#kable(
+#  df_test,
+#  row.names = FALSE,
+#  align = c("l", "c", "c"),
+#  caption = "Klasspecifik utvärdering för XGBoost (Testdata)"
+#) %>%
+#  kable_styling(full_width = FALSE) %>%
+#  add_header_above(header = acc_header_test)
+
+```
+
+Vi ser att den valda XGBoost modellen presterade förvånansvärt dåligt på både testdata och valideringsdata, samt för mellan klasser som "High". Den höga skillnaden mellan träffsäkerheten för träningsmängden och resterande två, tyder på att modellen har låg generaliserbarhet. Överlag så är modellen betydligt sämre än neurala nätverket, lasso och elastic net.
+
+## Vinnande modell och testdata
+
+Vi såg från kapitel 4.1-4.4 att lasso och elastic net modellerna hade högre valideringsaccuracy än resterande modeller, samt att lasso och elastic net hade nästan identiska övergripande träffsäkerheter för både validering och träningsdata. Träffsäkerheten för validering och träning var väldigt nära varandra, vilket vi tolkar som att båda modeller ha hög generaliserbarhet. Trots att Lasso hade 0.1 procentenheter högre valideringsträffsäkerhet än Elastic Net, så anser vi att Elastic Net borde utses som vinnande modell. Detta för att 1) 0.1 procentenheter är en mycket liten skillnad, och 2) Elastic Net tar bättre hänsyn till korrelationen bland de förklarande variablerna. På grund av detta så utser vi Elastic Net till den vinnande modellen. Nedan finns utvärderingsmått och förväxlingsmatris för Elastic Net använt på testdatan:
+
+```{r echo=FALSE}
+# Test utvärdering
+predsTest <- predict(model2, newx = X_test, type = "class")
+preds_test_factor <- factor(predsTest, levels = levels(Y_test))
+mat2_test <- confusionMatrix(data = preds_test_factor, reference = Y_test)
+# Förväxlingsmatris 
+confmat2_test <- mat2_test$table
+
+# Accuracy 
+acc2_test <- paste("Accuracy =", round(mat2_test$overall["Accuracy"]*100, 1), "%")
+header2_test <- setNames(4, acc2_test) 
+# Klass specifika mått 
+evals2_test <- mat2_test$byClass
+add_header_above(
+  kable_input = kable(round(evals2_test[,c(1:2, 5)], 3), 
+                      caption = "Utvärdering testdata, Elastic Net"), 
+  header = header2_test) 
+
+kable(confmat2_test, col.names = colnames(confmat2_test), 
+      caption = "Förväxlingsmatris testdata, Elastic Net") %>% 
+  add_header_above(c("Predikterad" = 1, "Faktisk" = 5)) %>% 
+  add_header_above(c(" " = 1, "Testdata" = 5))
+```
+
+När modellen predikterar testdatan så fås en övergripande träffsäkerhet på 68.4%, något lägre än träffsäkerheten för tränings- och valideringsdatan, dock endast en skillnad på 1.4 till 3.5 procentenheter, beroende på om vi jämför med träning eller validering. Vi anser att den valda modellen generaliserar bra till data som den inte har sett förut.
+
+\clearpage
+
+# Slutsats och diskussion
+
+Från resultatdelen så kan vi dra två viktiga slutsatser. Den första är att atletiska mått som exempelvis snabbhet och styrka är mycket viktigare för prediktera en individs atletiska nivå än deras demografiska faktorer. Atletiska mått verkar även vara betydligt viktigare för detta ändamål än att använda hälsoindikatorer, som hjärtslag per minut och bmi. Den andra slutsatsen som vi drar är att våra regressionsmodeller presterade betydligt bättre än våran XGBoost modell, trots att XGBoost generellt bör ha en hög prediktiv förmåga. Om vi utser en vinnande modell så är det Elastic Net modellen, för att den har dels en bra övervägning mellan prediktiv förmåga och tolkningsbarhet, och den tar bättre hänsyn till korrelationen i datan än vad lassomodellen gör, och har ungefär lika bra utvärderingsmått som lassomodellen och neurala nätverket.
+
+På grund av att datan som vi använde är syntetisk så är våra slutsatser något begränsade gällande vikten av specifika variabler, och vi vet inte med säkerhet hur modellerna skulle prestera på riktig data. Däremot så verkar del av syftet med datan vara så realistiskt som möjligt, så vi skulle inte bli förvånade om vi fick liknande resultat med riktig data, men detta är svårt att veta. Det kanske exempelvis finns fler och mer extrema observationer och/eller saknade värden i riktig data som skulle påverka modelleringen.
+
+Slutligen förväntade vi oss att både neurala nätverk och XGBoost modellen skulle prestera ännu bättre än vad de faktiskt gjorde på valideringsdata, alltså få högre värde på träffsäkerheten och eventuellt högre värde på de andra måtten. En förklaring till denna modellprestation kan vara att även våra bästa neurala nätverks och XGBoost modeller var långt från optimala, och det fanns andra hyperparameter inställningar som vi kunde ha justerat för båda modelltyper. Det är också möjligt att vi inte testade en tillräckligt stor räckvidd med hyperparametervärden, exempelvis på inlärningstakten i neurala nätverket så testade vi bara 3 värden med räckvidden [0.01, 0.0001], men vi hade kunnat ändra detta till att testa fler värden i ett bredare intervall som [0.1, 0.00001] och testat andra hyperparametrar. Om vi hade gjort om rapporten från nytt skulle vi experimenterat med ännu fler modeller.
+
+\clearpage
+
+# Referenser
+
+XGBoost Developers (2026) [Hämtad 2026-10-24] <https://xgboost.readthedocs.io/en/stable/parameter.html>
+
+Friedman, J., Hastie, T., Narasimhan, B., Simon, N., Tay, K., Tibshirani, R., (u.å.). *glmnet: fit a GLM with lasso or elasticnet regularization*. Rdocumentation <https://www.rdocumentation.org/packages/glmnet/versions/5.1/topics/glmnet> [Hämtad 2026-10-12]
+
+GeeksForGeeks (2025). *Implementation of Elastic Net Regression From Scratch*. GeeksForGeeks.com. <https://www.geeksforgeeks.org/machine-learning/implementation-of-elastic-net-regression-from-scratch/> [Hämtad 2026-10-12]
+
+James, G. Witten, D. Hastie, T. Tibshirani, R (2023). *An Introduction to Statistical Learning*. Upplaga 2. sida 242.
+
+Crossman-Smith, J (2024). *XGBoost Explained: A Beginners guide*. Medium.com. <https://medium.com/low-code-for-advanced-data-science/xgboost-explained-a-beginners-guide-095464ad418f> [Hämtad 2026-10-12]
+
+XGBoosting (2024). *XGBoost Configure "mlogloss" Eval Metric*. xgboosting.com. <https://xgboosting.com/xgboost-configure-mlogloss-eval-metric/> [Hämtad 2026-10-11]
+
+Kewei, S. Diaz, G. V., Kadry, N. S. (2022). Evaluating the Efficiency of Student Sports Training Based on Supervised Learning. *International Journal of Technology and Human Interaction*. 18(2). DOI: 10.4018/IJTHI.313427
+
+Pan, M. Ying, B. Lai, Y. Kuan, G. Status and Influencing Factors of Physical Excercise among College Students in China: A Systematic Review. *Int. J. of Environ. Res. Public Health* **2022**, 19, 13465. <https://doi.org/10.3390/ijerph192013465>
+
+Ng, Andrew (2017). *Adam Optimization Algorithm (C2W2L08)*. Youtube.com. <https://www.youtube.com/watch?v=JXQT_vxqwIs> [Hämtad 2026-10-12]
+
+McNulty, K. (2026). Utdrag från *Handbook of Regression Modeling in People Analytics: With Examples in R and Python*. Upplaga 2. <https://peopleanalytics-regression-book.org/multinomial_regression.html> [Hämtad 2026-10-24]
+
+Colabsss (2026). *Student Sports Performance Dataset*. Kaggle.com. <https://www.kaggle.com/datasets/colabsss/student-sports-performance-dataset> [Hämtat 2026-09-30]
+
+\clearpage
+
+# Bilaga
+
+## Kod
+
+Nedan är den mest väsentliga R-koden för våra modellskapanden, för att inte göra kodchunken onödigt stor:
+
+```{r, eval=FALSE, echo=TRUE}
+# Lasso korsvalidering och modell:
+library(glmnet)
+CV1 <- cv.glmnet(X, Y, type.measure = "class", 
+                 family = "multinomial", 
+                 alpha = 1) # Lasso
+bestlambda <- CV1$lambda.min
+model1 <- glmnet(X, Y, alpha = 1, lambda = bestlambda, family = "multinomial")
+
+# Elastic Net korsvalidering och modell: 
+CV2 <- cv.glmnet(X, Y, type.measure = "class", 
+                 family = "multinomial", 
+                 alpha = 0.5) # Elastic Net
+bestlambda2 <- CV2$lambda.min
+model2 <- glmnet(X, Y, alpha = 0.5, lambda = bestlambda2, family = "multinomial")
+
+# Neurala nätverk, hyperparametersökning med for-loop och accuracy jämförelse: 
+
+library(keras3)
+library(tensorflow)
+
+hyper_grid <- expand.grid(
+  lr = c(0.01, 0.001, 0.00001), 
+  layers = c(1, 2), 
+  neurons = c(32, 64), 
+  use_dropout = c(TRUE, FALSE)
+)
+
+history_list <- list()
+set_random_seed(123)
+
+for (i in 1:nrow(hyper_grid)) {
+  params <- hyper_grid[i, ]
+  
+  nn_model <- keras_model_sequential()
+  
+  nn_model %>% 
+    layer_dense(units = params$neurons, 
+                activation = "relu", 
+                input_shape = c(ncol(X_train_scaled)))
+  
+  if (params$use_dropout) {
+    nn_model %>% layer_dropout(rate = 0.2) 
+  }
+  if (params$layers == 2) {
+    nn_model %>% layer_dense(units = params$neurons, 
+                             activation = "relu")
+    if (params$use_dropout) {
+      nn_model %>% layer_dropout(rate = 0.2)
+    }
+  }
+  
+  nn_model %>% layer_dense(units = 5, activation = "softmax")
+  
+  nn_model %>% compile(
+    loss = "categorical_crossentropy", 
+    optimizer = optimizer_adam(learning_rate = params$lr), 
+    metrics = c("accuracy")
+  )
+  
+  history <- nn_model %>% fit(
+    x = X_train_scaled, 
+    y = Y_train, 
+    epochs = 30, 
+    batch_size = 32, 
+    validation_data = list(X_val_scaled, Y_val), 
+    verbose = 0
+  )
+  
+  model_name <- paste("LR", params$lr, "L", params$layers, "N", params$neurons, "Drop", params$use_dropout, sep = "_") 
+  history_list[[model_name]] <- history
+}
+
+# Väljer ut högsta valideringsaccuracy från varje modell:  
+max_val_accuracies <- sapply(history_list, function(hist) {
+  max(hist$metrics$val_accuracy)
+})
+
+# Skapar tabell för modellerna 
+results_df <- data.frame(
+  Modell = names(max_val_accuracies), 
+  Val_Accuracy = round(max_val_accuracies, 4), 
+  row.names = NULL
+)
+
+# Sorterar efter accuracy 
+results_df <- results_df[order(-results_df$Val_Accuracy), ]
+
+best_model <- results_df[1, ] # Bästa hyperparametrarna  
+                              
+
+# Jämförelser mellan accuracies bland neurala nätverk: 
+kable(cbind(head(results_df, 5), tail(results_df, 5)), 
+      caption = "De 5 bästa och sämsta modellerna från grid search") %>% 
+  add_header_above(header = c(" " = 1, "Bästa" = 2, "Sämsta" = 2)) %>% 
+  column_spec(3, border_right = "TRUE")
+
+
+# Epoken där accuracy var högst för bästa modellen
+optimal_epok <- which.max(
+  history_list$LR_0.001_L_1_N_32_Drop_TRUE$metrics$val_accuracy)
+
+# Den slutgiltiga NN modellen 
+set_random_seed(123)
+
+final_NN_model <- keras_model_sequential()
+
+final_NN_model %>% 
+  layer_dense(units = 32, 
+              activation = "relu", 
+              input_shape = c(ncol(X_train_scaled)), 
+              name = "Gomt_lager") %>% 
+  layer_dropout(rate = 0.2, 
+                name = "Dropout_lager") %>%
+  layer_dense(units = 5, 
+              activation = "softmax", 
+              name = "Output_lager") 
+
+final_NN_model %>% compile(
+  loss = "categorical_crossentropy", 
+  optimizer = optimizer_adam(learning_rate = 0.001), 
+  metrics = c("accuracy")
+)
+
+
+history <- final_NN_model %>% fit(
+  x = X_train_scaled, 
+  y = Y_train, 
+  epochs = optimal_epok, 
+  batch_size = 32, 
+  validation_data = list(X_val_scaled, Y_val), 
+  verbose = 0
+)
+
+# XGBoost hyperparametersökning och modell:
+
+library(mlbench)
+library(xgboost)
+
+param_grid <- expand.grid(
+  max_depth = c(3, 5, 7),
+  min_child_weight = c(1, 3),
+  subsample = c(0.6, 0.8, 1.0),
+  colsample_bytree = c(0.8),
+  learning_rate = c(0.1)
+)
+
+results_cv <- data.frame()
+
+set.seed(10)
+
+dtrain <- xgb.DMatrix(
+  data = X_train,
+  label = y_train_xgb
+)
+
+#Skapar en for loop som testar alla kombinationer
+for (i in 1:nrow(param_grid)) {
+  
+  params <- list(
+    objective = "multi:softprob",
+    num_class = 5,
+    max_depth = param_grid$max_depth[i],
+    min_child_weight = param_grid$min_child_weight[i],
+    subsample = param_grid$subsample[i],
+    colsample_bytree = param_grid$colsample_bytree[i],
+    learning_rate = param_grid$learning_rate[i],
+    eval_metric = "mlogloss", 
+    nthread = 1, 
+    seed = 1
+  )
+  
+  cv_model <- xgb.cv(
+    params = params,
+    data = dtrain,
+    nrounds = 100,
+    nfold = 5,
+    verbose = FALSE
+  )
+  
+  # Average validation mlogloss
+  cv_error <- cv_model$evaluation_log$test_mlogloss_mean[100]
+  
+  results_cv <- rbind(
+    results_cv,
+    data.frame(
+      max_depth = param_grid$max_depth[i],
+      min_child_weight = param_grid$min_child_weight[i],
+      subsample = param_grid$subsample[i],
+      colsample_bytree = param_grid$colsample_bytree[i],
+      learning_rate = param_grid$learning_rate[i],
+      mlogloss = cv_error
+    )
+  )
+}
+
+results_cv <- results_cv[
+  order(results_cv$mlogloss),
+]
+
+row.names(results_cv) <- NULL
+
+best_params <- results_cv[1, ]
+
+xgb_model <- xgb.train(
+  params = list(
+    objective = "multi:softprob",
+    num_class = 5,
+    max_depth = 7,
+    min_child_weight = 3,
+    subsample = 0.6,
+    colsample_bytree = 0.8,
+    learning_rate = 0.1,
+    eval_metric = "mlogloss", 
+    nthread = 1, # nthread och seed är tänkt att ge reproducerbart resultat
+    seed = 10
+  ),
+  data = dtrain,
+  nrounds = 100
+)
+
+```
+
+# Redogörelse för bidrag
+
+Under projektets gång så har André fokuserat mest på att skapa lasso, elastic net och neurala nätverksmodellerna, samt tabellerna och tolkningarna för dessa. Även delar av explorativa dataanalysen. Benjamin har mest fokuserat på XGBoost modellen, dess tabeller och tolkningar, samt delar av explorativ dataanalys och bakgrundens vetenskapliga referenser. Dock så har vi båda gjort ett försök att vara insatta i varandras fokusområden, men det var så vi valde att fördela arbetet.
+
+## Generativ AI
+
+Kommentarer om generativ AI (Benjamin): När vi gjorde en grid search för våran XGBoost modell så skapade vi en for loop som testade flera olika modeller för att hitta de bästa hyperparametrar, men på grund av att så många modeller testades så tog det evigheter för R att knitta dokumentet. Vi ville hitta ett sätt att optimera for loopen så att det tog en kortare tid att knitta dokumentet så vi frågade Gemini om några förslag på hur man kan optimera for loopen, dessa förslag funkade inte som vi tänkte så vi valde istället att testa färre modeller för att snabba på processen. Vi har dessutom använt Ai för att översätta vissa komplexa meningar när vi använde källor skriven på engelska.
+
+Kommentarer om generativ AI (André): Jag hade stora problem med att få ihop rätt hyperparametersökning för neurala nätverket, så där fick jag ganska mycket hjälp av Gemini att skriva ihop en bra for-loop. Vi har även använt en del AI hjälp för att snygga till flera tabeller och figurer, dock är jag ganska bekväm med tabellskapande så behövde inte särskilt mycket hjälp där. Vid några tillfällen så hade jag problem med att rendera Rmarkdown dokumentet och lyckades inte lista ut problemet på egen hand, så jag bad Gemini felsöka. Jag har även använt Gemini för att bolla idéer, till exempel vad som kan räknas som bra hyperparametervärden att söka igenom. När det kommer till teorin dock så försökte jag luta mig mot kurslitteratur i första hand. Som Benjamin påpekar så hjälpte Gemini till med hyperparametersökning för XGBoost. Jag tog även hjälp av generativ AI för att skriva så korrekta referenser som möjligt (enligt Harvards referenssystem).
+
+
